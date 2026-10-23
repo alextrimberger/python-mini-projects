@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Same AI, Different Foundations</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: mobile-first single column; ≥960px splits into a sticky controls column and a results column. */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --fg: #1b1b19;
+  --fg-2: #52514c;
+  --muted: #74736d;
+  --line: #e2e1dc;
+  --grid: #ecebe7;
+  --people: #5f5e59;
+  --current: #b37600;
+  --solid: #2a78d6;
+  --found: #6c5fc7;
+  --focus: #2a78d6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-num: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413; --surface: #1d1d1b; --fg: #efeee9; --fg-2: #c3c2b9; --muted: #97968e;
+    --line: #34332f; --grid: #2a2a27; --people: #75736c; --current: #c98500; --solid: #3987e5;
+    --found: #9085e9; --focus: #6aa8f0; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413; --surface: #1d1d1b; --fg: #efeee9; --fg-2: #c3c2b9; --muted: #97968e;
+  --line: #34332f; --grid: #2a2a27; --people: #75736c; --current: #c98500; --solid: #3987e5;
+  --found: #9085e9; --focus: #6aa8f0; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(26px, 6vw, 38px); line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-size: 17px; margin: 0; font-weight: 650; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--fg-2); font-size: 16px; }
+.notice { display: inline-block; margin-top: 10px; font-size: 13px; letter-spacing: .02em; color: var(--fg-2); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; background: var(--surface); }
+.layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.layout > * { min-width: 0; }
+@media (min-width: 960px) {
+  .layout { grid-template-columns: 340px 1fr; align-items: start; }
+  .controls { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 24px); overflow-y: auto; }
+}
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel p { margin: 0; }
+.hint, .caption { color: var(--muted); font-size: 13px; }
+.results { display: flex; flex-direction: column; gap: 20px; }
+
+/* Controls */
+.presets { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+button:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { border-color: var(--fg); font-weight: 600; }
+button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+details.group { border-top: 1px solid var(--line); padding-top: 10px; }
+details.group > summary { cursor: pointer; font-weight: 650; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-2); list-style-position: inside; }
+.sliders { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.field label { font-size: 14px; font-weight: 550; }
+.field output { font-variant-numeric: tabular-nums; font-weight: 650; font-size: 14px; white-space: nowrap; }
+input[type=range] { width: 100%; margin: 4px 0 0; accent-color: var(--solid); min-height: 28px; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 640px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.card h2 { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.swatch { width: 22px; height: 0; border-top: 3px solid var(--c); flex: none; }
+.swatch.dash { border-top-style: dashed; }
+.swatch.dot { border-top-style: dotted; border-top-width: 4px; }
+.big { font-family: var(--font-num); font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.big small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 0; }
+.stats div { min-width: 0; }
+.stats dt { font-size: 12px; color: var(--muted); }
+.stats dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.savings { font-size: 14px; color: var(--fg-2); border-top: 1px solid var(--line); padding-top: 8px; }
+
+/* Charts */
+.chart-box { position: relative; width: 100%; height: 300px; }
+.chart-box.hero { height: 360px; }
+@media (max-width: 480px) { .chart-box.hero { height: 300px; } .chart-box { height: 260px; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--fg-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.fallback { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--fg-2); font-weight: 600; }
+
+/* Compounding strip */
+.strip { display: flex; flex-direction: column; gap: 6px; }
+.strip-head { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; }
+.strip-head .pct { font-variant-numeric: tabular-nums; }
+.steps { display: flex; gap: 2px; height: 56px; align-items: flex-end; }
+.step { flex: 1 1 0; min-width: 0; height: 100%; background: var(--grid); border-radius: 2px; position: relative; overflow: hidden; }
+.step i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--c); border-radius: 2px 2px 0 0; }
+.step-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+/* Breakdown */
+.bd { display: flex; flex-direction: column; gap: 14px; }
+.bd-row { display: flex; flex-direction: column; gap: 5px; }
+.bd-label { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.bd-label b { font-variant-numeric: tabular-nums; }
+.bar { display: flex; gap: 2px; height: 22px; }
+.seg { height: 100%; min-width: 0; }
+.seg:first-child { border-radius: 4px 0 0 4px; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.seg.people { background: var(--people); }
+.seg.recruit { background: repeating-linear-gradient(45deg, var(--people) 0 3px, var(--surface) 3px 6px); }
+.seg.ai { background: var(--solid); }
+.seg.platform { background: repeating-linear-gradient(135deg, var(--solid) 0 3px, var(--surface) 3px 6px); }
+.seg.found { background: var(--found); }
+.bd-detail { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; }
+
+details.how > summary { cursor: pointer; font-weight: 650; }
+details.how ul { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+details.how p { margin-top: 8px; max-width: 68ch; }
+footer { color: var(--muted); font-size: 13px; text-align: center; padding-top: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Same AI. Different foundations.</h1>
+    <p class="sub">An illustrative model of back-office cost as volume grows.</p>
+    <span class="notice">Illustrative figures only, not company data</span>
+  </header>
+
+  <div class="layout">
+    <aside class="controls panel" aria-label="Assumptions">
+      <h2>Assumptions</h2>
+      <div class="presets" role="group" aria-label="Presets">
+        <button type="button" data-preset="default" aria-pressed="true">Default</button>
+        <button type="button" data-preset="small" aria-pressed="false">Small team</button>
+        <button type="button" data-preset="large" aria-pressed="false">Large back office</button>
+        <button type="button" data-preset="sceptical" aria-pressed="false">Sceptical</button>
+        <button type="button" id="reset">Reset</button>
+      </div>
+      <div id="groups"></div>
+    </aside>
+
+    <main class="results">
+      <section class="cards" id="cards" aria-live="polite"></section>
+
+      <section class="panel" aria-labelledby="h-cost">
+        <h2 id="h-cost">Annual cost as volume grows</h2>
+        <p class="hint">Each line recalculates the whole model at every volume from today's level to five times today, with all other assumptions fixed. The vertical line marks the volume you've selected.</p>
+        <div class="legend" aria-hidden="true">
+          <span><i class="swatch" style="--c:var(--people)"></i>People only</span>
+          <span><i class="swatch dash" style="--c:var(--current)"></i>AI on current processes</span>
+          <span><i class="swatch dot" style="--c:var(--solid)"></i>AI on solid foundations</span>
+        </div>
+        <div class="chart-box hero"><canvas id="costChart" role="img" aria-label="Line chart of annual cost against volume growth for the three scenarios"></canvas></div>
+        <div class="fallback" id="costFallback" hidden></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-fte">
+        <h2 id="h-fte">People needed as volume grows</h2>
+        <p class="hint">Full-time equivalents needed for manual work, error fixing, AI exceptions and spot checks.</p>
+        <div class="legend" aria-hidden="true">
+          <span><i class="swatch" style="--c:var(--people)"></i>People only</span>
+          <span><i class="swatch dash" style="--c:var(--current)"></i>AI on current processes</span>
+          <span><i class="swatch dot" style="--c:var(--solid)"></i>AI on solid foundations</span>
+        </div>
+        <div class="chart-box"><canvas id="fteChart" role="img" aria-label="Line chart of people needed against volume growth for the three scenarios"></canvas></div>
+        <div class="fallback" id="fteFallback" hidden></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-strip">
+        <h2 id="h-strip">How friction compounds</h2>
+        <p class="hint">Each box is one process step. The bar shows the share of AI attempts still running without a person stepping in after that step. The straight-through rate on the cards is lower because it also counts the tasks AI can't cover.</p>
+        <div id="strips" class="strip-list" style="display:flex;flex-direction:column;gap:18px"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-bd">
+        <h2 id="h-bd">Where the money goes</h2>
+        <div class="legend">
+          <span><i class="key seg people"></i>People</span>
+          <span><i class="key seg recruit"></i>Recruitment</span>
+          <span><i class="key seg ai"></i>AI running</span>
+          <span><i class="key seg platform"></i>AI platform</span>
+          <span><i class="key seg found"></i>Foundations</span>
+        </div>
+        <div class="bd" id="breakdown"></div>
+      </section>
+
+      <section class="panel">
+        <details class="how">
+          <summary>How this works</summary>
+          <p>The model takes one routine back-office task and costs it three ways for a year. People only: staff do every task and fix their own errors. With AI, the AI attempts the share of tasks it can cover. An attempt goes straight through only if every step succeeds. Each step can fail through AI error or through process friction, such as missing data or an unclear hand-off. Failed attempts become exceptions that a person handles, at extra effort. A sample of the AI's completed work is spot-checked. Friction also makes each AI attempt costlier through retries. Fixing the foundations has a one-off cost, spread over the years you choose.</p>
+          <ul>
+            <li>Costs are annual and in today's money, with no inflation or discounting.</li>
+            <li>People can be hired in fractions. FTE is not rounded to whole people.</li>
+            <li>Hires each year cover staff turnover plus all the extra people needed to reach the selected volume, counted in a single year.</li>
+            <li>Every step has the same friction and the same AI reliability.</li>
+            <li>Exceptions and spot checks are assumed to be error-free.</li>
+            <li>The AI platform cost is fixed and doesn't grow with volume.</li>
+            <li>Fixing the foundations is assumed not to change the speed or error rate of people-only work.</li>
+          </ul>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <footer>Illustrative figures only, not company data.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ===================== Model (pure) ===================== */
+const PARAMS = [
+  { group: 'Workload', items: [
+    { id: 'tasksPerYear', label: "Tasks per year at today's volume", def: 120000, min: 10000, max: 1000000, step: 10000, fmt: 'int', hint: 'How many of these tasks the team handles in a year now.' },
+    { id: 'volumeGrowth', label: 'Volume growth', def: 1.0, min: 1.0, max: 5.0, step: 0.1, fmt: 'x', hint: 'Future volume as a multiple of today, for example after winning new contracts.' },
+  ]},
+  { group: 'People', items: [
+    { id: 'salary', label: 'Annual salary per administrator', def: 28000, min: 20000, max: 60000, step: 1000, fmt: 'gbp', hint: 'Basic pay before on-costs.' },
+    { id: 'onCosts', label: 'Employment on-costs', def: 0.30, min: 0, max: 0.60, step: 0.05, fmt: 'pct', hint: 'National Insurance, pension and overheads, as a share of salary.' },
+    { id: 'tasksPerPersonPerDay', label: 'Tasks one person completes per day', def: 40, min: 5, max: 200, step: 5, fmt: 'int', hint: 'Typical output of one administrator on this task.' },
+    { id: 'workingDays', label: 'Working days per year', def: 220, min: 180, max: 250, step: 5, fmt: 'int', hint: 'After holidays, sickness and training.' },
+    { id: 'recruitmentCost', label: 'Recruitment and onboarding cost per new hire', def: 6000, min: 0, max: 20000, step: 500, fmt: 'gbp', hint: 'Advertising, agency fees and time to get someone up to speed.' },
+    { id: 'turnover', label: 'Annual staff turnover', def: 0.15, min: 0, max: 0.40, step: 0.01, fmt: 'pct', hint: 'Share of staff who leave and need replacing each year.' },
+    { id: 'errorRate', label: 'Human error rate', def: 0.03, min: 0, max: 0.15, step: 0.005, fmt: 'pct1', hint: 'Share of tasks done by people that need correcting.' },
+    { id: 'errorFixMultiplier', label: 'Time to fix one error', def: 1.5, min: 0.5, max: 5, step: 0.1, fmt: 'xt', hint: 'Effort to put one error right, compared with doing the task once.' },
+  ]},
+  { group: 'AI', items: [
+    { id: 'coverage', label: 'Share of tasks AI could handle at all', def: 0.75, min: 0, max: 1, step: 0.05, fmt: 'pct', hint: 'The rest stay fully manual, whatever the process quality.' },
+    { id: 'aiReliability', label: 'AI reliability per step on a clean process', def: 0.99, min: 0.90, max: 0.999, step: 0.001, fmt: 'pct1', hint: 'Chance the AI gets one step right when the process itself has no gaps.' },
+    { id: 'costPerAttempt', label: 'AI running cost per task attempt', def: 0.25, min: 0.01, max: 2.00, step: 0.01, fmt: 'gbp2', hint: 'Usage charge each time the AI works on a task, before friction.' },
+    { id: 'platformCost', label: 'AI platform and support cost per year', def: 60000, min: 0, max: 300000, step: 5000, fmt: 'gbp', hint: 'Licences, hosting, monitoring and support. Fixed whatever the volume.' },
+    { id: 'spotCheckRate', label: 'Share of AI-completed tasks spot-checked', def: 0.10, min: 0, max: 1, step: 0.05, fmt: 'pct', hint: 'A person reviews this share of work the AI finished on its own.' },
+    { id: 'spotCheckMultiplier', label: 'Time to spot-check', def: 0.2, min: 0.05, max: 1, step: 0.05, fmt: 'xt', hint: 'Effort of one check, compared with doing the task once.' },
+    { id: 'exceptionMultiplier', label: 'Time to handle an AI exception', def: 1.5, min: 1, max: 4, step: 0.1, fmt: 'xt', hint: 'Picking up a task the AI could not finish takes longer than starting fresh.' },
+  ]},
+  { group: 'Friction', items: [
+    { id: 'steps', label: 'Steps in the process', def: 10, min: 3, max: 30, step: 1, fmt: 'int', hint: 'Distinct actions or hand-offs from start to finish.' },
+    { id: 'fCurrent', label: 'Friction per step: current processes', def: 0.05, min: 0, max: 0.20, step: 0.005, fmt: 'pct1', hint: 'Chance a step hits a workaround, missing data, an inconsistency or an unclear hand-off.' },
+    { id: 'fSolid', label: 'Friction per step: solid foundations', def: 0.01, min: 0, max: 0.10, step: 0.005, fmt: 'pct1', hint: 'The same chance once processes are standardised, consistent and measured.' },
+    { id: 'frictionCostUplift', label: 'Extra AI cost per friction point', def: 0.30, min: 0, max: 1, step: 0.05, fmt: 'pct', hint: 'Retries and workarounds add this much to the AI running cost for each friction point.' },
+    { id: 'oneOffFix', label: 'One-off cost of fixing the foundations', def: 250000, min: 0, max: 2000000, step: 25000, fmt: 'gbp', hint: 'Process mapping, data clean-up, standardisation and measurement.' },
+    { id: 'yearsToSpread', label: 'Years to spread the foundation cost over', def: 3, min: 1, max: 10, step: 1, fmt: 'yrs', hint: 'The one-off cost is shared equally across these years.' },
+  ]},
+];
+const SPECS = Object.fromEntries(PARAMS.flatMap(g => g.items).map(p => [p.id, p]));
+const DEFAULTS = Object.fromEntries(Object.values(SPECS).map(p => [p.id, p.def]));
+
+function clampInputs(raw) {
+  const out = {};
+  for (const p of Object.values(SPECS)) {
+    let v = Number(raw[p.id]);
+    if (!Number.isFinite(v)) v = p.def;
+    out[p.id] = Math.min(p.max, Math.max(p.min, v));
+  }
+  return out;
+}
+
+// foundation: 'people' | 'current' | 'solid'
+function simulate(rawInputs, foundation) {
+  const i = clampInputs(rawInputs);
+  const t = 1 / (i.tasksPerPersonPerDay * i.workingDays);
+  const P = i.salary * (1 + i.onCosts);
+  const errorLoad = 1 + i.errorRate * i.errorFixMultiplier;
+
+  function fteAt(growth) {
+    const V = i.tasksPerYear * growth;
+    if (foundation === 'people') return { V, fte: V * errorLoad * t };
+    const f = foundation === 'solid' ? i.fSolid : i.fCurrent;
+    const stepSuccess = i.aiReliability * (1 - f);
+    const endToEnd = Math.pow(stepSuccess, i.steps);
+    const attempted = V * i.coverage;
+    const straightThrough = attempted * endToEnd;
+    const exceptions = attempted - straightThrough;
+    const manual = V * (1 - i.coverage);
+    const checks = straightThrough * i.spotCheckRate;
+    const fte = (manual * errorLoad + exceptions * i.exceptionMultiplier + checks * i.spotCheckMultiplier) * t;
+    return { V, fte, f, stepSuccess, endToEnd, attempted, straightThrough, exceptions, manual, checks };
+  }
+
+  const base = fteAt(1);
+  const r = fteAt(i.volumeGrowth);
+  const fte = Math.max(0, r.fte);
+  const hires = Math.max(0, fte * i.turnover + Math.max(0, fte - base.fte));
+  const people = fte * P;
+  const recruitment = hires * i.recruitmentCost;
+  let aiRunning = 0, platform = 0, foundations = 0, straightThroughRate = 0, endToEnd = null;
+  if (foundation !== 'people') {
+    aiRunning = r.attempted * i.costPerAttempt * (1 + r.f * i.steps * i.frictionCostUplift);
+    platform = i.platformCost;
+    foundations = foundation === 'solid' ? i.oneOffFix / i.yearsToSpread : 0;
+    endToEnd = r.endToEnd;
+    straightThroughRate = r.endToEnd * i.coverage;
+  }
+  const cost = Math.max(0, people + recruitment + aiRunning + platform + foundations);
+  return {
+    scenario: foundation, volume: r.V, cost, costPerTask: cost / r.V, fte, hires,
+    straightThroughRate, endToEnd, stepSuccess: r.stepSuccess ?? null,
+    breakdown: { people, recruitment, aiRunning, platform, foundations },
+  };
+}
+
+function runSelfChecks() {
+  const d = { ...DEFAULTS };
+  const p1 = simulate(d, 'people'), c1 = simulate(d, 'current'), s1 = simulate(d, 'solid');
+  const d3 = { ...d, volumeGrowth: 3 };
+  const p3 = simulate(d3, 'people'), c3 = simulate(d3, 'current'), s3 = simulate(d3, 'solid');
+  const r = (x, n = 1) => Math.round(x * 10 ** n) / 10 ** n;
+  console.table({
+    'End-to-end, current (≈54%)': { value: r(c1.endToEnd * 100) + '%' },
+    'End-to-end, solid (≈82%)': { value: r(s1.endToEnd * 100) + '%' },
+    'People-only FTE at 1× (≈14)': { value: r(p1.fte) },
+    'Cost at 1×: people / current / solid': { value: [p1, c1, s1].map(x => Math.round(x.cost)).join(' / ') },
+    'Solid cheapest at 1×': { value: s1.cost < c1.cost && c1.cost < p1.cost },
+    'Cost at 3×: people / current / solid': { value: [p3, c3, s3].map(x => Math.round(x.cost)).join(' / ') },
+    'Gap current−solid widens 1×→3×': { value: (c3.cost - s3.cost) > (c1.cost - s1.cost) },
+    'Hires at 3×: people / current / solid': { value: [p3, c3, s3].map(x => r(x.hires)).join(' / ') },
+  });
+  let bad = 0;
+  for (const p of Object.values(SPECS)) for (const v of [p.min, p.max]) for (const sc of ['people', 'current', 'solid']) {
+    const res = simulate({ ...d, [p.id]: v }, sc);
+    const nums = [res.cost, res.costPerTask, res.fte, res.hires, res.straightThroughRate, ...Object.values(res.breakdown)];
+    if (nums.some(n => !Number.isFinite(n) || n < 0)) { bad++; console.warn('Bad output', p.id, v, sc, res); }
+  }
+  console.log(bad ? `Self-check: ${bad} slider extremes gave negative or invalid values` : 'Self-check: every slider at min and max gives finite, non-negative results');
+}
+
+/* ===================== UI ===================== */
+const SCEN = [
+  { id: 'people', name: 'People only', color: '--people', dash: [], point: 'circle', cls: '' },
+  { id: 'current', name: 'AI on current processes', color: '--current', dash: [8, 5], point: 'triangle', cls: 'dash' },
+  { id: 'solid', name: 'AI on solid foundations', color: '--solid', dash: [2, 4], point: 'rectRot', cls: 'dot' },
+];
+const PRESETS = {
+  default: {},
+  small: { tasksPerYear: 30000, salary: 26000, platformCost: 25000, oneOffFix: 75000, tasksPerPersonPerDay: 35 },
+  large: { tasksPerYear: 600000, salary: 34000, platformCost: 150000, oneOffFix: 600000, steps: 14 },
+  sceptical: { aiReliability: 0.96, coverage: 0.5, costPerAttempt: 0.75, oneOffFix: 750000, platformCost: 100000, spotCheckRate: 0.25 },
+};
+const STORE_KEY = 'ai-savings-simulator-v1';
+
+const gbp0 = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 });
+const gbp2 = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const int = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 });
+const k1000 = v => gbp0.format(Math.round(v / 1000) * 1000);
+const short = v => v >= 1e6 ? '£' + (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'm' : '£' + Math.round(v / 1000) + 'k';
+const fte1 = v => (Math.round(v * 10) / 10).toFixed(1);
+const pct0 = v => Math.round(v * 100) + '%';
+
+function fmtValue(p, v) {
+  switch (p.fmt) {
+    case 'gbp': return gbp0.format(v);
+    case 'gbp2': return gbp2.format(v);
+    case 'pct': return Math.round(v * 100) + '%';
+    case 'pct1': return (Math.round(v * 1000) / 10).toFixed(1).replace(/\.0$/, '') + '%';
+    case 'x': return v.toFixed(1) + '× today';
+    case 'xt': return (Math.round(v * 100) / 100) + '× a task';
+    case 'yrs': return v + (v === 1 ? ' year' : ' years');
+    default: return int.format(v);
+  }
+}
+
+let state = { ...DEFAULTS };
+try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (saved) state = clampInputs({ ...DEFAULTS, ...saved }); } catch (e) {}
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+const groupsEl = document.getElementById('groups');
+groupsEl.innerHTML = PARAMS.map((g, gi) => `
+  <details class="group" ${gi === 0 ? 'open' : ''}>
+    <summary>${g.group}</summary>
+    <div class="sliders">${g.items.map(p => `
+      <div class="field">
+        <div class="field-top"><label for="in-${p.id}">${p.label}</label><output id="out-${p.id}" for="in-${p.id}"></output></div>
+        <input type="range" id="in-${p.id}" data-id="${p.id}" min="${p.min}" max="${p.max}" step="${p.step}" aria-describedby="hint-${p.id}">
+        <span class="hint" id="hint-${p.id}">${p.hint}</span>
+      </div>`).join('')}
+    </div>
+  </details>`).join('');
+
+function syncInputs() {
+  for (const p of Object.values(SPECS)) {
+    const el = document.getElementById('in-' + p.id);
+    el.value = state[p.id];
+    const txt = fmtValue(p, state[p.id]);
+    document.getElementById('out-' + p.id).textContent = txt;
+    el.setAttribute('aria-valuetext', txt);
+  }
+}
+
+groupsEl.addEventListener('input', e => {
+  const id = e.target.dataset.id; if (!id) return;
+  state[id] = clampInputs({ ...state, [id]: parseFloat(e.target.value) })[id];
+  const txt = fmtValue(SPECS[id], state[id]);
+  document.getElementById('out-' + id).textContent = txt;
+  e.target.setAttribute('aria-valuetext', txt);
+  setPressed(null);
+  update();
+});
+
+function setPressed(name) { document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === name))); }
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  state = clampInputs({ ...DEFAULTS, ...PRESETS[b.dataset.preset], volumeGrowth: state.volumeGrowth });
+  setPressed(b.dataset.preset); syncInputs(); update(true);
+}));
+document.getElementById('reset').addEventListener('click', () => { state = { ...DEFAULTS }; setPressed('default'); syncInputs(); update(true); });
+
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+function renderCards(res) {
+  const [p, c, s] = res;
+  const vsP = p.cost >= s.cost, vsC = c.cost >= s.cost;
+  const amt = (a, b) => k1000(Math.abs(a - b));
+  let line;
+  if (vsP && vsC) line = `Saves ${amt(p.cost, s.cost)} a year vs people only, and ${amt(c.cost, s.cost)} vs AI on current processes.`;
+  else if (!vsP && !vsC) line = `Costs ${amt(p.cost, s.cost)} a year more than people only, and ${amt(c.cost, s.cost)} more than AI on current processes.`;
+  else if (vsP) line = `Saves ${amt(p.cost, s.cost)} a year vs people only, but costs ${amt(c.cost, s.cost)} more than AI on current processes.`;
+  else line = `Saves ${amt(c.cost, s.cost)} a year vs AI on current processes, but costs ${amt(p.cost, s.cost)} more than people only.`;
+  document.getElementById('cards').innerHTML = res.map((r, i) => `
+    <article class="card" style="--c:var(${SCEN[i].color})">
+      <h2><i class="swatch ${SCEN[i].cls}"></i>${SCEN[i].name}</h2>
+      <div class="big">${k1000(r.cost)} <small>a year</small></div>
+      <dl class="stats">
+        <div><dt>Per task</dt><dd>${gbp2.format(r.costPerTask)}</dd></div>
+        <div><dt>FTE</dt><dd>${fte1(r.fte)}</dd></div>
+        <div><dt title="Share of all tasks completed by AI with no person involved">Straight through</dt><dd>${r.scenario === 'people' ? 'n/a' : pct0(r.straightThroughRate)}</dd></div>
+      </dl>
+      ${r.scenario === 'solid' ? `<p class="savings">${line}</p>` : ''}
+    </article>`).join('');
+}
+
+function renderStrips(res) {
+  const rows = [
+    { name: 'Current processes', f: state.fCurrent, r: res[1], color: '--current' },
+    { name: 'Solid foundations', f: state.fSolid, r: res[2], color: '--solid' },
+  ];
+  const n = state.steps;
+  const rel = fmtValue(SPECS.aiReliability, state.aiReliability);
+  document.getElementById('strips').innerHTML = rows.map(row => {
+    const boxes = Array.from({ length: n }, (_, k) => {
+      const h = Math.pow(row.r.stepSuccess, k + 1) * 100;
+      return `<div class="step" title="After step ${k + 1}: ${h.toFixed(0)}%"><i style="height:${h}%"></i></div>`;
+    }).join('');
+    const f = fmtValue(SPECS.fCurrent, row.f);
+    return `<div class="strip" style="--c:var(${row.color})">
+      <div class="strip-head"><span>${row.name}</span><span class="pct">${pct0(row.r.endToEnd)} straight through</span></div>
+      <div class="steps" role="img" aria-label="${row.name}: falls from 100% to ${pct0(row.r.endToEnd)} over ${n} steps">${boxes}</div>
+      <div class="step-axis"><span>Step 1</span><span>Step ${n}</span></div>
+      <p class="caption">${f} friction at each of ${n} steps, with ${rel} AI reliability per step, leaves ${pct0(row.r.endToEnd)} of AI attempts flowing straight through.</p>
+    </div>`;
+  }).join('');
+}
+
+function renderBreakdown(res) {
+  const max = Math.max(...res.map(r => r.cost)) || 1;
+  const parts = [['people', 'People'], ['recruitment', 'Recruitment', 'recruit'], ['aiRunning', 'AI running', 'ai'], ['platform', 'AI platform'], ['foundations', 'Foundations', 'found']];
+  document.getElementById('breakdown').innerHTML = res.map((r, i) => {
+    const segs = parts.filter(([k]) => r.breakdown[k] > 0).map(([k, label, cls]) =>
+      `<div class="seg ${cls || k}" style="width:${(r.breakdown[k] / max) * 100}%" title="${label}: ${k1000(r.breakdown[k])}"></div>`).join('');
+    const detail = parts.filter(([k]) => r.breakdown[k] > 0).map(([k, label]) => `${label} ${short(r.breakdown[k])}`).join(' · ');
+    return `<div class="bd-row">
+      <div class="bd-label"><span>${SCEN[i].name}</span><b>${k1000(r.cost)}</b></div>
+      <div class="bar" role="img" aria-label="${SCEN[i].name}: ${detail}">${segs}</div>
+      <div class="bd-detail">${detail}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- Charts ---------- */
+const GROWTH = Array.from({ length: 41 }, (_, k) => Math.round((1 + k * 0.1) * 10) / 10);
+function series() {
+  return SCEN.map(sc => GROWTH.map(g => simulate({ ...state, volumeGrowth: g }, sc.id)));
+}
+const hasChart = typeof window.Chart === 'function';
+let costChart, fteChart;
+
+const markerPlugin = {
+  id: 'marker',
+  afterDatasetsDraw(chart) {
+    const x = chart.scales.x.getPixelForValue(state.volumeGrowth);
+    const { top, bottom } = chart.chartArea;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.strokeStyle = css('--fg-2'); ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = css('--fg-2'); ctx.font = '12px ' + css('--font-body');
+    const label = state.volumeGrowth.toFixed(1) + '×';
+    const w = ctx.measureText(label).width;
+    ctx.fillText(label, Math.min(x + 4, chart.chartArea.right - w), top + 12);
+    ctx.restore();
+  }
+};
+
+function makeChart(canvas, yFmt, tipFmt) {
+  return new Chart(canvas, {
+    type: 'line',
+    data: { datasets: SCEN.map(sc => ({ label: sc.name, data: [], borderDash: sc.dash, pointStyle: sc.point, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0 })) },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+      interaction: { mode: 'index', intersect: false },
+      layout: { padding: { right: 8 } },
+      scales: {
+        x: { type: 'linear', min: 1, max: 5, ticks: { stepSize: 1, callback: v => v + '×' }, title: { display: true, text: 'Volume compared with today' } },
+        y: { beginAtZero: true, ticks: { callback: yFmt, maxTicksLimit: 6 } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { title: it => it[0].parsed.x.toFixed(1) + '× today', label: it => `${it.dataset.label}: ${tipFmt(it.parsed.y)}` } },
+      },
+    },
+    plugins: [markerPlugin],
+  });
+}
+
+function themeChart(ch) {
+  const grid = css('--grid'), muted = css('--muted'), fg2 = css('--fg-2'), font = css('--font-body');
+  ch.data.datasets.forEach((ds, i) => { const c = css(SCEN[i].color); ds.borderColor = c; ds.backgroundColor = c; ds.pointHoverBorderColor = css('--surface'); });
+  for (const ax of ['x', 'y']) {
+    const s = ch.options.scales[ax];
+    s.grid = { color: grid, drawTicks: false }; s.border = { color: grid };
+    s.ticks.color = muted; s.ticks.font = { family: font, size: 12 }; s.ticks.padding = 6;
+    if (s.title) { s.title.color = fg2; s.title.font = { family: font, size: 12 }; }
+  }
+  const tip = ch.options.plugins.tooltip;
+  Object.assign(tip, { backgroundColor: css('--surface'), titleColor: css('--fg'), bodyColor: css('--fg-2'), borderColor: css('--line'), borderWidth: 1, usePointStyle: true, boxPadding: 4 });
+}
+
+function fallbackTable(sr, key, fmt) {
+  const cols = [1, 2, 3, 4, 5];
+  return `<table><caption class="sr-only">Figures by volume</caption><thead><tr><th>Scenario</th>${cols.map(c => `<th>${c}×</th>`).join('')}</tr></thead><tbody>${
+    SCEN.map((sc, i) => `<tr><td>${sc.name}</td>${cols.map(c => `<td>${fmt(sr[i][GROWTH.indexOf(c)][key])}</td>`).join('')}</tr>`).join('')
+  }</tbody></table>`;
+}
+
+function renderCharts() {
+  const sr = series();
+  if (!hasChart) {
+    document.querySelectorAll('.chart-box').forEach(el => el.hidden = true);
+    const c = document.getElementById('costFallback'), f = document.getElementById('fteFallback');
+    c.hidden = f.hidden = false;
+    c.innerHTML = '<p class="hint">Charts could not load, so the figures are shown as a table.</p>' + fallbackTable(sr, 'cost', k1000);
+    f.innerHTML = fallbackTable(sr, 'fte', fte1);
+    return;
+  }
+  if (!costChart) {
+    costChart = makeChart(document.getElementById('costChart'), short, k1000);
+    fteChart = makeChart(document.getElementById('fteChart'), v => v, v => fte1(v) + ' FTE');
+    themeChart(costChart); themeChart(fteChart);
+  }
+  costChart.data.datasets.forEach((ds, i) => ds.data = sr[i].map((r, k) => ({ x: GROWTH[k], y: r.cost })));
+  fteChart.data.datasets.forEach((ds, i) => ds.data = sr[i].map((r, k) => ({ x: GROWTH[k], y: r.fte })));
+  costChart.update(); fteChart.update();
+}
+
+let chartTimer;
+function update(immediate) {
+  const res = SCEN.map(sc => simulate(state, sc.id));
+  renderCards(res); renderStrips(res); renderBreakdown(res);
+  save();
+  clearTimeout(chartTimer);
+  if (immediate) renderCharts(); else chartTimer = setTimeout(renderCharts, 80);
+}
+
+function retheme() { if (costChart) { themeChart(costChart); themeChart(fteChart); costChart.update(); fteChart.update(); } }
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme); } catch (e) {}
+try { new MutationObserver(retheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+
+if (JSON.stringify(state) !== JSON.stringify(DEFAULTS)) setPressed(null);
+syncInputs();
+update(true);
+runSelfChecks();
+</script>
+
+</body>
+</html>
